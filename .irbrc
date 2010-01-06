@@ -23,6 +23,31 @@ def whoCalled()
   $my_stack[-3] # -1 is this method, -2 is the caller who wants to know, -3 is the one who called our caller
 end
 
+class Integer  
+  # use like .times(), except that this will stop when the block returns true.
+  # that is, it will execute the block at most the specified number of times
+  # (in cases where the block continually returns falsey values or throws 
+  # exceptions), ultimately returning the value of the last iteration or 
+  # rethrowing the last exception -- or it stops and returns the result of 
+  # the first iteration that returns a truthy value.
+  # ...really, its for doing retries.
+  def tries
+    iteration = 0
+    success   = false
+    while iteration < self and not success
+      iteration += 1
+      begin
+        success = yield iteration
+      rescue Exception => err
+        if iteration == self
+          raise err
+        end
+      end
+    end
+    return success
+  end
+end
+
 # shortcut for rubydocs
 def ri(*names)
   system(%{ri #{names.map {|name| name.to_s}.join(" ")}})
