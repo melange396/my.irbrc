@@ -1,3 +1,22 @@
+# my.irbrc -- useful ruby methods for debugging and general use.
+# Copyright (C)2010 by george.haff (@gmail)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+
+
 require 'irb/completion'
 require 'irb/ext/save-history'
 require 'set'
@@ -10,7 +29,8 @@ begin
   IRB.conf[:VERBOSE]      = true # adds some amount of detail to certain output
   IRB.conf[:SAVE_HISTORY] = 2000 # lines of history to save
 rescue
-  # load as module by doing `ln -s ~/.irbrc ~/irbrc.rb` and then in your programs, include `require '~/irbrc'`
+  # load as module by doing `ln -s ~/.irbrc ~/irbrc.rb`
+  # and then in your programs, include `require '~/irbrc'`
   puts 'irbrc loaded as module'
 end
 
@@ -22,15 +42,20 @@ $my_stack = []
 set_trace_func proc { |event, file, line, id, binding, classname|
   if event == "call" #|| event == "c-call"
     $my_stack.push [classname, id]
-  end
-  if event == "return" #|| event == "c-return"
+  elsif event == "return" #|| event == "c-return"
     $my_stack.pop
   end
 }
 def whoCalled()
-  $my_stack[-3] # -1 is this method, -2 is the caller who wants to know, -3 is the one who called our caller
+  # -1 is this method "whoCalled()",
+  # -2 is the caller who wants to know,
+  # -3 is the one who called our caller
+  $my_stack[-3]
 end
-
+def disableWhoCalled()
+  # beacause the trace_func seems to really slow down irb with deep stacks...
+  set_trace_func nil
+end
 
 
 
@@ -97,9 +122,12 @@ end
 
 class Hash
   # naive way of finding key and value types for a hash
-  def mapType(map=self)
+  def self.mapType(map)
     k = map.keys[0]
     return k.class.to_s+" --> "+map[k].class.to_s
+  end
+  def mapType(map=self)
+    Hash.mapType(map)
   end
 
   def to_s
@@ -126,7 +154,9 @@ end
 class Object
   # add to these:
   #   whether a method takes a block?
-  #   public class/instance members/methods (private_instance_methods, protected_instance_methods, public_instance_methods, singleton_methods, constants - superclass.constants)
+  #   public||private class||instance members||methods
+  #     ( private_instance_methods, protected_instance_methods, public_instance_methods,
+  #     singleton_methods, constants - superclass.constants )
 
   # detailed object information
   def introspect(obj = self)
@@ -208,11 +238,14 @@ end
 
 
 class String
-  def startsWith(prefix, test=self)
+  def startsWith(prefix)
+    String.startsWith(prefix, self)
+  end
+  def self.startsWith(prefix, test)
     if prefix.kind_of?(Array)
-      prefix.any?{|p| startsWith(p, test)}
+      prefix.any?{|p| String.startsWith(p, test)}
     elsif test.kind_of?(Array)
-      test.any?{|t| startsWith(prefix, t)}
+      test.any?{|t| String.startsWith(prefix, t)}
     else
       prefix.eql?(test[0, prefix.length])
     end
@@ -237,15 +270,8 @@ end
 #use thusly:
 #  a,b = order(1,2)
 #  x,y = order(4,3)
-#  puts a
-#  puts b
-#  puts x
-#  puts y
-#=>
-#  1
-#  2
-#  3
-#  4
+#  puts [a,b,x,y].inspect
+#=> [1, 2, 3, 4]
 def order(a, b)
   if b<a
     [b, a]
@@ -253,6 +279,9 @@ def order(a, b)
     [a, b]
   end
 end
+
+
+
 
 # for backwards compatibility, .tap() is standard in ruby 1.9, but not before
 if not defined? tap
@@ -263,3 +292,10 @@ if not defined? tap
     end
   end
 end
+
+
+
+
+# some of the methods here that are attached to classes have an
+# optional argument that defaults to self.  this is from the first
+# iteration of the methods that stood alone.
