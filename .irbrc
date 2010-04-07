@@ -136,6 +136,8 @@ end
 # prints a hash of hashes as a matrix.
 # assumes fixed width font but makes no assumptions about width.
 # assumes all items in the data (or whatever they become after a .to_s call) are free of newlines.
+# if using the sort block functionality, dont forget to make sure your comparitor handles nils
+# (or whatever default value for your hashes) gracefully!
 #   puts prettyPrintAttrs(arraysToIndicatorHash([:a,:b,:c], [:b,:c,:d], [:a,:c,:d]))
 #=> index  0     2     1
 #   =======================
@@ -143,11 +145,22 @@ end
 #   b      true  -     true
 #   c      true  true  true
 #   d      -     true  true
+#
+#   h = { :a=>{:i=>1, :v=>1, :x=>:b},
+#         :b=>{:i=>3, :v=>2, :x=>:b},
+#         :c=>{:i=>2, :v=>3},
+#         :d=>{:i=>5, :v=>4, :x=>:a}
+#       }
+#   puts prettyPrintAttrs(h, nil, 's', 3, '-', true){|a,b| a[:i]<=>b[:i] }
+#=> s   a   c   b   d
+#   i   1   2   3   5
+#   v   1   3   2   4
+#   x   b   -   b   a
 def prettyPrintAttrs(attrs, headerKeys=nil, keyHeaderName="index", colSpacing=2, defaultBlank="-", rotate=false)
   if headerKeys.nil?
     ks = {}
-    attrs.each_value {|v|
-      v.keys.each {|k|
+    attrs.each_value { |v|
+      v.keys.each { |k|
         ks[k] = (ks[k]||0)+1
       }
     }
@@ -155,9 +168,14 @@ def prettyPrintAttrs(attrs, headerKeys=nil, keyHeaderName="index", colSpacing=2,
   end
   cols = [[keyHeaderName]]
   headerKeys.each{|k| cols<<[k.to_s] }
-  attrs.each {|k, v|
+  keys = attrs.keys
+  if block_given?
+    keys.sort!{|a,b| yield(attrs[a], attrs[b]) }
+  end
+  keys.each { |k|
+    v = attrs[k]
     cols[0] << k.to_s
-    headerKeys.each_index {|i|
+    headerKeys.each_index { |i|
       cols[i+1] << if v.has_key?(headerKeys[i])
         v[headerKeys[i]].to_s
       else
@@ -169,15 +187,15 @@ def prettyPrintAttrs(attrs, headerKeys=nil, keyHeaderName="index", colSpacing=2,
     cols = cols.transpose
   end
   sizes = []
-  cols.each {|col|
+  cols.each { |col|
     sizes << col.max{|a,b| a.length<=>b.length }.length
   }
   ret = ""
-  cols[0].each_index {|i|
-    if i==1
+  cols[0].each_index { |i|
+    if i==1 #TODO:??   and !rotate
       ret += "="*(sizes.inject{|sum,n| sum+n }+colSpacing*(sizes.length-1)) + "\n"
     end
-    cols.each_index {|j|
+    cols.each_index { |j|
       ret += cols[j][i].ljust(sizes[j]+colSpacing)
     }
     ret += "\n"
